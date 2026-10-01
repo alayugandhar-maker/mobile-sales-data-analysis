@@ -1,0 +1,256 @@
+!pip install streamlit pyngrok plotly -q
+
+%%writefile app.py
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
+# -----------------------------
+# Page Configuration
+# -----------------------------
+
+st.set_page_config(
+    page_title="Mobile Sales Dashboard",
+    page_icon="📱",
+    layout="wide"
+)
+
+# -----------------------------
+# Load Dataset
+# -----------------------------
+
+df = pd.read_csv("Mobile_Sales.csv")
+
+# Convert dates
+df["Inward Date"] = pd.to_datetime(
+    df["Inward Date"],
+    format="%d-%m-%Y"
+)
+
+df["Dispatch Date"] = pd.to_datetime(
+    df["Dispatch Date"],
+    format="%d-%m-%Y"
+)
+
+# Derived columns
+df["Sales Value"] = df["Price"] * df["Quantity Sold"]
+
+df["Month"] = df["Dispatch Date"].dt.to_period("M").astype(str)
+
+# -----------------------------
+# Title
+# -----------------------------
+
+st.title("📱 Mobile Sales Data Analysis Dashboard")
+
+st.markdown(
+    "Interactive dashboard for analyzing mobile sales, "
+    "brands, regions, prices and specifications."
+)
+
+# -----------------------------
+# Sidebar Filters
+# -----------------------------
+
+st.sidebar.header("🔍 Filters")
+
+selected_brand = st.sidebar.multiselect(
+    "Select Brand",
+    options=sorted(df["Brand"].unique()),
+    default=sorted(df["Brand"].unique())
+)
+
+selected_region = st.sidebar.multiselect(
+    "Select Region",
+    options=sorted(df["Region"].unique()),
+    default=sorted(df["Region"].unique())
+)
+
+selected_ram = st.sidebar.multiselect(
+    "Select RAM",
+    options=sorted(df["RAM"].unique()),
+    default=sorted(df["RAM"].unique())
+)
+
+# -----------------------------
+# Apply Filters
+# -----------------------------
+
+filtered_df = df[
+    (df["Brand"].isin(selected_brand)) &
+    (df["Region"].isin(selected_region)) &
+    (df["RAM"].isin(selected_ram))
+]
+
+# -----------------------------
+# KPI Cards
+# -----------------------------
+
+total_sales = filtered_df["Sales Value"].sum()
+total_quantity = filtered_df["Quantity Sold"].sum()
+average_price = filtered_df["Price"].mean()
+number_of_brands = filtered_df["Brand"].nunique()
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric(
+    "💰 Total Sales",
+    f"₹{total_sales:,.0f}"
+)
+
+col2.metric(
+    "📦 Quantity Sold",
+    f"{total_quantity:,}"
+)
+
+col3.metric(
+    "💵 Average Price",
+    f"₹{average_price:,.0f}"
+)
+
+col4.metric(
+    "🏷️ Brands",
+    number_of_brands
+)
+
+st.divider()
+
+# -----------------------------
+# Brand-wise Sales
+# -----------------------------
+
+brand_sales = (
+    filtered_df.groupby("Brand")["Quantity Sold"]
+    .sum()
+    .reset_index()
+    .sort_values("Quantity Sold", ascending=False)
+)
+
+fig_brand = px.bar(
+    brand_sales,
+    x="Brand",
+    y="Quantity Sold",
+    title="Brand-wise Sales"
+)
+
+st.plotly_chart(
+    fig_brand,
+    use_container_width=True
+)
+
+# -----------------------------
+# Region-wise Sales
+# -----------------------------
+
+region_sales = (
+    filtered_df.groupby("Region")["Quantity Sold"]
+    .sum()
+    .reset_index()
+)
+
+fig_region = px.pie(
+    region_sales,
+    names="Region",
+    values="Quantity Sold",
+    title="Region-wise Sales"
+)
+
+st.plotly_chart(
+    fig_region,
+    use_container_width=True
+)
+
+# -----------------------------
+# Monthly Sales Trend
+# -----------------------------
+
+monthly_sales = (
+    filtered_df.groupby("Month")["Sales Value"]
+    .sum()
+    .reset_index()
+)
+
+fig_month = px.line(
+    monthly_sales,
+    x="Month",
+    y="Sales Value",
+    markers=True,
+    title="Monthly Sales Trend"
+)
+
+st.plotly_chart(
+    fig_month,
+    use_container_width=True
+)
+
+# -----------------------------
+# RAM-wise Sales
+# -----------------------------
+
+ram_sales = (
+    filtered_df.groupby("RAM")["Quantity Sold"]
+    .sum()
+    .reset_index()
+)
+
+fig_ram = px.bar(
+    ram_sales,
+    x="RAM",
+    y="Quantity Sold",
+    title="RAM-wise Sales"
+)
+
+st.plotly_chart(
+    fig_ram,
+    use_container_width=True
+)
+
+# -----------------------------
+# Price Distribution
+# -----------------------------
+
+fig_price = px.histogram(
+    filtered_df,
+    x="Price",
+    nbins=30,
+    title="Price Distribution"
+)
+
+st.plotly_chart(
+    fig_price,
+    use_container_width=True
+)
+
+# -----------------------------
+# Data Table
+# -----------------------------
+
+st.subheader("📊 Filtered Sales Data")
+
+st.dataframe(
+    filtered_df,
+    use_container_width=True
+)
+
+
+!streamlit run app.py &>/content/logs.txt &
+
+!pip install pyngrok -q
+
+!streamlit run app.py --server.port 8501 &>/content/logs.txt &
+
+from pyngrok import ngrok
+
+ngrok.set_auth_token("3K0RpCOQMtHwABESI3Rk8nQLy89_6XqkEcsTsUcfHQUD5nssG")
+
+!streamlit run app.py --server.port 8501 &>/content/logs.txt &
+
+from pyngrok import ngrok
+
+ngrok.kill()
+
+public_url = ngrok.connect(8501)
+
+print("Open this URL:")
+print(public_url)
