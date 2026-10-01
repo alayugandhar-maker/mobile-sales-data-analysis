@@ -8,6 +8,8 @@ Analyzed mobile sales data to identify sales trends and customer preferences.
 - Pandas
 - NumPy
 - Matplotlib
+- Seaborn
+## Streamlit
 
 ## Features
 - Sales trend analysis
